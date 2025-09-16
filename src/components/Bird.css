@@ -1,0 +1,6 @@
+/* Styling for the bird component */
+.bird {
+  position: absolute; /* Allows us to position the bird using top, left, etc. */
+  background-color: yellow;
+  border-radius: 50%; /* Makes the element a perfect circle */
+}

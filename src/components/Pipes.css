@@ -1,0 +1,13 @@
+/* Styling for the container that holds both pipes */
+.pipes-container {
+  position: absolute; /* Allows us to position the pipes relative to the game container */
+  height: 100%; /* Makes the container fill the full height of the game area */
+  display: flex; /* Arranges the top and bottom pipes vertically */
+  flex-direction: column; /* Ensures the pipes are stacked on top of each other */
+}
+
+/* Styling for the individual pipe elements */
+.pipe {
+  background-color: green;
+  border: 2px solid black;
+}

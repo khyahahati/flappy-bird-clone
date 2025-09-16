@@ -1,0 +1,15 @@
+/* Styling for the main game container */
+.game-container {
+  /* This makes the container fill the entire screen */
+  height: 100vh;
+  width: 100vw;
+  /* Add more styles later to position and style the game area */
+  position: relative;
+  overflow: hidden; /* Hides anything that goes outside the container */
+}
+
+/* Optional: Add some basic styles to the body to remove default margins */
+body {
+  margin: 0;
+  padding: 0;
+}
