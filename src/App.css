@@ -1,15 +1,105 @@
-/* Styling for the main game container */
-.game-container {
-  /* This makes the container fill the entire screen */
-  height: 100vh;
-  width: 100vw;
-  /* Add more styles later to position and style the game area */
-  position: relative;
-  overflow: hidden; /* Hides anything that goes outside the container */
-}
+/* Import the Pixelify Sans font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap');
 
-/* Optional: Add some basic styles to the body to remove default margins */
 body {
   margin: 0;
   padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: #333;
+  /* New: Set the font family for the entire page */
+  font-family: 'Pixelify Sans', sans-serif;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.game-box {
+  width: 600px;
+  height: 600px;
+  background-color: #70c5ce;
+  border: 5px solid black;
+  position: relative;
+  overflow: hidden;
+}
+
+.start-screen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: white;
+  text-shadow: 2px 2px 4px black;
+}
+
+.start-screen h1 {
+  font-size: 4em;
+  margin-bottom: 0.5em;
+}
+
+/* New: Style for the button */
+.start-button {
+  margin-top: 20px;
+  padding: 15px 30px;
+  background-color: yellow;
+  color: red;
+  border: 2px solid darkred;
+  border-radius: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.start-button:hover {
+  transform: scale(1.05);
+}
+
+/* ... other CSS ... */
+
+.message-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: white;
+  text-shadow: 2px 2px 4px black;
+  font-family: 'Pixelify Sans', sans-serif;
+  z-index: 10; /* Ensures the message is on top of the game elements */
+}
+
+.message-container h1 {
+  font-size: 4em;
+  margin-bottom: 0.5em;
+}
+
+.message-container p {
+  font-size: 2em;
+}
+
+.game-over h1 {
+  color: red;
+}
+
+/* ... other CSS ... */
+
+.score-display {
+  position: absolute;
+  top: 20px;
+  color: white;
+  font-size: 2em;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px black;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
 }
