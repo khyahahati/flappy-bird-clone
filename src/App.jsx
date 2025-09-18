@@ -1,38 +1,71 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Bird from './components/Bird';
 import Pipes from './components/Pipes';
 import './App.css';
 
 function App() {
-  const [birdPosition, setBirdPosition] = useState(250);
+  // ===========================================
+  // GAME STATE MANAGEMENT
+  // ===========================================
+  const [bird, setBird] = useState({ position: 250, velocity: 0 });
   const [isGameOver, setIsGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
 
+  // ===========================================
+  // GAME CONSTANTS & PHYSICS PARAMETERS
+  // ===========================================
   const birdSize = 60;
-  const gravity = 3;
-  const jumpStrength = 60;
+  const gravity = 0.4;
+  const jumpStrength = -8;
+  const terminalVelocity = 8;
   const gameHeight = 600;
   const gameWidth = 600;
   const ground = gameHeight - birdSize;
+  const ceiling = 0;
 
-  const [pipes, setPipes] = useState([]);
+  // Pipe configuration
   const pipesWidth = 50;
   const pipesGap = 200;
-  const pipesSpeed = 5;
+  const pipesSpeed = 2;
+  const pipeSpacing = 180; // Reduced spacing for earlier pipe arrival
 
-  const getNewPipeHeight = () => Math.random() * 200 + 100; 
+  // ===========================================
+  // REFS FOR PERFORMANCE OPTIMIZATION
+  // ===========================================
+  const pipesRef = useRef([]);
+  const gameLoopRef = useRef(null);
+  const pipeIdRef = useRef(0); // Unique ID generator for pipes
 
+  // ===========================================
+  // UTILITY FUNCTIONS
+  // ===========================================
+  const getNewPipeHeight = () => {
+    const minHeight = 50;
+    const maxHeight = gameHeight - pipesGap - 100;
+    return Math.random() * (maxHeight - minHeight) + minHeight;
+  };
+
+  const resetGameState = () => {
+    setBird({ position: 250, velocity: 0 });
+    setScore(0);
+    pipesRef.current = [];
+    pipeIdRef.current = 0;
+
+    // Spawn initial pipe closer to the visible area for earlier arrival
+    pipesRef.current = [
+      { id: pipeIdRef.current++, x: gameWidth + 50, topHeight: getNewPipeHeight(), passed: false }
+    ];
+  };
+
+  // ===========================================
+  // GAME CONTROL FUNCTIONS
+  // ===========================================
   const startGame = () => {
     setGameStarted(true);
     setIsGameOver(false);
-    setScore(0);
-    setBirdPosition(250);
-    // Give the bird an initial jump when the game starts to prevent it from falling immediately.
-    setBirdPosition(pos => pos - jumpStrength); 
-    setPipes([
-      { x: gameWidth, topHeight: getNewPipeHeight(), passed: false }
-    ]);
+    resetGameState();
+    setBird({ position: 250, velocity: jumpStrength });
   };
 
   const playAgain = () => {
@@ -45,13 +78,17 @@ function App() {
       return;
     }
     if (!isGameOver) {
-      setBirdPosition(pos => Math.max(0, pos - jumpStrength));
+      setBird(prev => ({ ...prev, velocity: jumpStrength }));
     }
   }, [gameStarted, isGameOver, jumpStrength]);
 
+  // ===========================================
+  // INPUT HANDLING - stable handler, added once
+  // ===========================================
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space') {
+        e.preventDefault();
         jump();
       }
     };
@@ -59,64 +96,146 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [jump]);
 
-  useEffect(() => {
-    let gameId;
-    if (gameStarted && !isGameOver) {
-      gameId = setInterval(() => {
-        setBirdPosition(pos => pos + gravity);
-        
-        setPipes(currentPipes => {
-          const newPipes = currentPipes.map(pipe => ({
-            ...pipe,
-            x: pipe.x - pipesSpeed
-          }));
-          
-          newPipes.forEach(pipe => {
-            if (pipe.x + pipesWidth < gameWidth / 2 - birdSize / 2 && !pipe.passed) {
-              pipe.passed = true;
-              setScore(score => score + 1);
-            }
+  // ===========================================
+  // COLLISION DETECTION SYSTEM
+  // ===========================================
+  const checkPipeCollision = (birdY, pipes) => {
+    const birdX = gameWidth / 2 - birdSize / 2;
+    const birdRight = birdX + birdSize;
+    const birdBottom = birdY + birdSize;
+    const collisionTolerance = 3;
+
+    for (let pipe of pipes) {
+      const pipeLeft = pipe.x;
+      const pipeRight = pipe.x + pipesWidth;
+      const topPipeBottom = pipe.topHeight;
+      const bottomPipeTop = pipe.topHeight + pipesGap;
+
+      const horizontalOverlap = (birdRight > pipeLeft + 10) && (birdX < pipeRight - 10);
+
+      // Uncomment to debug horizontal overlap
+      // console.log('Horizontal Overlap Check:', {
+      //   birdX,
+      //   birdRight,
+      //   pipeLeft,
+      //   pipeRight,
+      //   horizontalOverlap
+      // });
+
+      if (horizontalOverlap) {
+        const hitTopPipe = birdY < (topPipeBottom - collisionTolerance);
+        const hitBottomPipe = birdBottom > (bottomPipeTop + collisionTolerance);
+
+        if (hitTopPipe || hitBottomPipe) {
+          console.log('REAL COLLISION:', {
+            birdY: Math.round(birdY),
+            birdBottom: Math.round(birdBottom),
+            topPipeBottom: Math.round(topPipeBottom),
+            bottomPipeTop: Math.round(bottomPipeTop),
+            gapSize: Math.round(bottomPipeTop - topPipeBottom),
+            birdInGap: birdY > topPipeBottom && birdBottom < bottomPipeTop
           });
-          
-          return newPipes.filter(pipe => pipe.x > -pipesWidth);
-        });
-
-        if (pipes.length > 0 && pipes[pipes.length - 1].x < gameWidth - 250) {
-          setPipes(currentPipes => [
-            ...currentPipes,
-            { x: gameWidth, topHeight: getNewPipeHeight(), passed: false }
-          ]);
+          return true;
         }
-        
-        if (birdPosition >= ground) {
-          setIsGameOver(true);
-        }
+      }
+    }
+    return false;
+  };
 
-        const birdX = gameWidth / 2 - birdSize / 2;
-        const birdY = birdPosition;
-        
-        pipes.forEach(pipe => {
-          if (
-            birdX < pipe.x + pipesWidth &&
-            birdX + birdSize > pipe.x &&
-            (birdY < pipe.topHeight || birdY + birdSize > pipe.topHeight + pipesGap)
-          ) {
-            setIsGameOver(true);
-          }
-        });
-      }, 24);
+  const checkBoundaryCollision = (birdY) => {
+    const hitCeiling = birdY < -5;
+    const hitGround = birdY >= ground;
+
+    if (hitCeiling || hitGround) {
+      console.log('BOUNDARY COLLISION:', {
+        birdY: Math.round(birdY), ceiling, ground, hitCeiling, hitGround
+      });
     }
 
-    return () => clearInterval(gameId);
-  }, [birdPosition, isGameOver, gameStarted, pipes, ground, birdSize, gameWidth, pipesWidth, pipesGap]);
+    return hitCeiling || hitGround;
+  };
 
+  // ===========================================
+  // MAIN GAME LOOP
+  // ===========================================
+  const [renderPipes, setRenderPipes] = useState([]);
+
+  useEffect(() => {
+    if (!gameStarted || isGameOver) return;
+
+    const gameLoop = () => {
+      setBird(prevBird => {
+        const newVelocity = Math.min(prevBird.velocity + gravity, terminalVelocity);
+        const newPosition = prevBird.position + newVelocity;
+
+        const hitBoundary = checkBoundaryCollision(newPosition);
+        const hitPipe = checkPipeCollision(newPosition, pipesRef.current);
+
+        if (hitBoundary || hitPipe) {
+          setIsGameOver(true);
+          console.log('Game Over triggered:', { hitBoundary, hitPipe, newPosition: Math.round(newPosition) });
+          return prevBird;
+        }
+
+        console.log('Bird:', { position: Math.round(newPosition), velocity: newVelocity.toFixed(2) });
+
+        return { position: newPosition, velocity: newVelocity };
+      });
+
+      pipesRef.current = pipesRef.current.map(pipe => ({
+        ...pipe,
+        x: pipe.x - pipesSpeed
+      }));
+
+      const birdX = gameWidth / 2;
+      pipesRef.current.forEach(pipe => {
+        if (pipe.x + pipesWidth < birdX && !pipe.passed) {
+          pipe.passed = true;
+          setScore(prevScore => {
+            console.log('Score increased:', prevScore + 1);
+            return prevScore + 1;
+          });
+        }
+      });
+
+      pipesRef.current = pipesRef.current.filter(pipe => pipe.x > -pipesWidth);
+
+      const lastPipe = pipesRef.current[pipesRef.current.length - 1];
+      if (!lastPipe || lastPipe.x < gameWidth - pipeSpacing) {
+        pipesRef.current.push({
+          id: pipeIdRef.current++,
+          x: gameWidth,
+          topHeight: getNewPipeHeight(),
+          passed: false
+        });
+      }
+
+      setRenderPipes([...pipesRef.current]);
+
+      if (!isGameOver) {
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+      }
+    };
+
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
+
+    return () => {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+    };
+  }, [gameStarted, isGameOver]);
+
+  // ===========================================
+  // RENDER COMPONENT (unchanged)
+  // ===========================================
   return (
     <div className="game-container">
       <div className="game-box">
-        {gameStarted && <Bird top={birdPosition} size={birdSize} />}
-        {gameStarted && pipes.map((pipe, index) => (
+        {gameStarted && <Bird top={bird.position} size={birdSize} />}
+        {gameStarted && renderPipes.map((pipe) => (
           <Pipes
-            key={index}
+            key={pipe.id}
             x={pipe.x}
             topHeight={pipe.topHeight}
             gap={pipesGap}
